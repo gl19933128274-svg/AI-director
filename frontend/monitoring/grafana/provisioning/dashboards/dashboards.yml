@@ -1,0 +1,17 @@
+# Grafana Dashboard 自动加载配置
+# 部署后自动加载所有 Dashboard
+
+apiVersion: 1
+
+providers:
+  - name: 'AI导演系统 Dashboards'
+    orgId: 1
+    folder: ''
+    folderUid: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: true

@@ -1,0 +1,83 @@
+# Alertmanager 配置
+# 告警通知配置 - 钉钉/邮件
+
+global:
+  resolve_timeout: 5m
+  smtp_smarthost: 'smtp.example.com:587'
+  smtp_from: 'alertmanager@example.com'
+  smtp_auth_username: 'alertmanager'
+  smtp_auth_password: 'password'
+
+# 路由树配置
+route:
+  group_by: ['alertname', 'cluster', 'service', 'track']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  receiver: 'dingtalk'
+  routes:
+    # 灰度发布关键告警 - 立即通知
+    - match:
+        severity: critical
+        action_required: true
+      receiver: 'dingtalk-critical'
+      group_wait: 0s
+      repeat_interval: 1m
+    
+    # 警告级别告警
+    - match:
+        severity: warning
+      receiver: 'dingtalk-warning'
+      continue: true
+
+# 接收者配置
+receivers:
+  # 钉钉告警机器人 (普通)
+  - name: 'dingtalk'
+    webhook_configs:
+      - url: 'http://dingtalk-webhook.monitoring:8060/dingtalk/webhook/send'
+        send_resolved: true
+
+  # 钉钉告警机器人 (关键告警)
+  - name: 'dingtalk-critical'
+    webhook_configs:
+      - url: 'http://dingtalk-webhook.monitoring:8060/dingtalk/webhook/send_critical'
+        send_resolved: true
+        http_config:
+          bearer_token: 'critical-token'
+
+  # 钉钉告警机器人 (警告级别)
+  - name: 'dingtalk-warning'
+    webhook_configs:
+      - url: 'http://dingtalk-webhook.monitoring:8060/dingtalk/webhook/send_warning'
+        send_resolved: true
+
+  # 邮件告警
+  - name: 'email'
+    email_configs:
+      - to: 'ops-team@example.com,dev-team@example.com'
+        send_resolved: true
+        headers:
+          subject: '[{{ .Status | toUpper }}] {{ .GroupLabels.alertname }}'
+
+  # 预留: Slack
+  # - name: 'slack'
+  #   slack_configs:
+  #     - api_url: 'https://hooks.slack.com/services/xxx'
+  #       channel: '#alerts'
+
+# 禁止重复分组
+inhibit_rules:
+  # 阻止相同服务但不同严重程度的告警
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'service']
+  
+  # 阻止网络相关告警
+  - source_match:
+      alertname: 'NetworkUnreachable'
+    target_match:
+      severity: 'warning'
+    equal: ['service']

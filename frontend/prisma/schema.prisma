@@ -1,0 +1,173 @@
+// AI导演系统 V3.0 数据库模型 - SaaS级产品化版本
+// 文档参考: docs/ARCHITECTURE.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id              String           @id @default(cuid())
+  email           String           @unique
+  phone           String?          @unique
+  passwordHash    String
+  nickname        String
+  avatar          String?
+  role            String           @default("user")       // user | creator | admin
+  memberLevel     String           @default("free")      // free | pro | studio
+  credits         Int              @default(0)
+  emailVerified   Boolean          @default(false)
+  phoneVerified   Boolean          @default(false)
+  dailyLimit      Int              @default(30)
+  dailyUsed       Int              @default(0)
+  dailyResetAt    DateTime         @default(now())
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  works           Work[]
+  favorites       Favorite[]
+  subscriptions   Subscription[]
+  tasks           Task[]
+  costRecords     CostRecord[]
+}
+
+model Work {
+  id            String          @id @default(cuid())
+  userId        String
+  title         String
+  description   String?
+  thumbnail     String?
+  videoUrl      String?
+  status        String          @default("draft")         // draft | generating | completed | published | deleted
+  visibility    String          @default("private")       // public | private | unlisted
+  tags          String          @default("[]")
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favorites     Favorite[]
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  workId    String
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workId])
+}
+
+model Template {
+  id            String       @id @default(cuid())
+  name          String
+  description   String?
+  thumbnail     String?
+  config        String       @default("{}")
+  requiredLevel String       @default("free")
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Subscription {
+  id             String       @id @default(cuid())
+  userId         String
+  level          String
+  startDate      DateTime
+  endDate        DateTime?
+  status         String       @default("active")
+  paymentMethod  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Task {
+  id             String           @id @default(cuid())
+  taskId         String           @unique
+  userId         String?
+  type           String           // storyboard | video
+  status         String           @default("pending")     // pending | processing | completed | failed
+  prompt         String
+  imageUrl       String?
+  videoUrl       String?
+  cost           Float            @default(0)
+  estimatedCost  Float            @default(0)
+  inputTokens    Int              @default(0)
+  outputDuration Float            @default(0)
+  modelId        String?
+  error          String?
+  requestId      String
+  traceId        String
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  completedAt    DateTime?
+
+  user           User?            @relation(fields: [userId], references: [id])
+  costRecords    CostRecord[]
+}
+
+model CostRecord {
+  id              String      @id @default(cuid())
+  userId          String
+  taskId          String?
+  requestId       String
+  modelId         String
+  inputTokens     Int         @default(0)
+  inputImageSize  Int         @default(0)
+  outputDuration  Float       @default(0)
+  estimatedCost   Float
+  actualCost      Float       @default(0)
+  status          String      // success | failed | pending
+  createdAt       DateTime    @default(now())
+
+  user            User        @relation(fields: [userId], references: [id])
+  task            Task?       @relation(fields: [taskId], references: [taskId])
+}
+
+model SystemLog {
+  id          String      @id @default(cuid())
+  requestId   String
+  traceId     String
+  userId      String?
+  level       String      // debug | info | warn | error | critical
+  module      String
+  step        String
+  status      String      // started | processing | success | failed | warning
+  latency     Int         @default(0)
+  input       String?
+  output      String?
+  errorCode   String?
+  error       String?
+  service     String      @default("unknown")
+  createdAt   DateTime    @default(now())
+}
+
+model ReleaseConfig {
+  id                 String      @id @default(cuid())
+  enabled            Boolean     @default(true)
+  trafficPercent     Int         @default(100)
+  killSwitch         Boolean     @default(false)
+  videoGeneration    Boolean     @default(true)
+  sceneGeneration    Boolean     @default(true)
+  allowlistedUsers   String      @default("[]")
+  blocklistedUsers   String      @default("[]")
+  updatedAt          DateTime    @updatedAt
+}
+
+model RateLimit {
+  id            String      @id @default(cuid())
+  userId        String      @unique
+  minuteCount   Int         @default(0)
+  dailyCount    Int         @default(0)
+  minuteResetAt DateTime    @default(now())
+  dailyResetAt  DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}

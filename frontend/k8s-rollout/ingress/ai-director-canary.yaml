@@ -1,0 +1,52 @@
+# AI导演系统灰度版本 Ingress
+# 支持流量切分、Header路由和Cookie持久化
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-director-canary
+  namespace: production
+  labels:
+    app: ai-director
+    track: canary
+  annotations:
+    # 启用 Canary 模式
+    nginx.ingress.kubernetes.io/canary: "true"
+    
+    # 流量权重 (0-100) - 初始设为0，由脚本动态调整
+    nginx.ingress.kubernetes.io/canary-weight: "0"
+    
+    # Header 路由 - X-Canary: always/never
+    nginx.ingress.kubernetes.io/canary-by-header: "X-Canary"
+    nginx.ingress.kubernetes.io/canary-by-header-value: "always"
+    nginx.ingress.kubernetes.io/canary-by-header-value: "never"
+    
+    # Cookie 持久化 - canary=true/false
+    nginx.ingress.kubernetes.io/canary-by-cookie: "canary"
+    
+    # 其他配置
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/client-max-body-size: "50m"
+    
+    # 灰度发布标识
+    canary-release: "v2.0"
+    canary-phase: "initial"
+spec:
+  tls:
+  - hosts:
+    - api.aidirector.example.com
+    secretName: api-tls-secret
+  rules:
+  - host: api.aidirector.example.com
+    http:
+      paths:
+      - path: /(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: ai-director-canary
+            port:
+              number: 80

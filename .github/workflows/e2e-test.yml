@@ -1,0 +1,116 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 📦 Install dependencies
+        working-directory: ./frontend
+        run: |
+          echo "=== Installing dependencies ==="
+          npm ci
+          echo "✅ Dependencies installed successfully"
+          echo ""
+          echo "=== Installed packages ==="
+          npm list --depth=0
+
+      - name: 🚀 Run Prisma migrations
+        working-directory: ./frontend
+        run: |
+          echo "=== Running Prisma migrations ==="
+          npx prisma migrate dev --name init --skip-seed
+          echo "✅ Prisma migrations completed successfully"
+
+      - name: 🏗️ Build the application
+        working-directory: ./frontend
+        run: |
+          echo "=== Building application ==="
+          npm run build
+          echo "✅ Application built successfully"
+
+      - name: 🌐 Start development server
+        working-directory: ./frontend
+        run: |
+          echo "=== Starting development server ==="
+          echo "Environment: DATABASE_URL=${DATABASE_URL}"
+          npm run dev > /tmp/nextjs.log 2>&1 &
+          echo $! > /tmp/nextjs.pid
+          echo "✅ Development server started with PID $(cat /tmp/nextjs.pid)"
+        env:
+          DATABASE_URL: "file:./dev.db"
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          NEXT_PUBLIC_API_BASE: "http://localhost:3000"
+
+      - name: ⏳ Wait for server to start
+        run: |
+          echo "=== Waiting for server to start ==="
+          for i in {1..30}; do
+            echo "Attempt $i/30: Checking if server is ready..."
+            response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/v1/health)
+            echo "HTTP Response: $response"
+            if [ "$response" -eq 200 ]; then
+              echo "✅ Server is ready"
+              exit 0
+            fi
+            echo "⏳ Server not ready yet, waiting 2 seconds..."
+            sleep 2
+          done
+          echo "❌ Server did not start in time"
+          echo "=== Server logs ==="
+          cat /tmp/nextjs.log
+          exit 1
+
+      - name: 🧪 Run E2E tests
+        working-directory: ./frontend
+        run: |
+          echo "=== Starting E2E tests ==="
+          echo "API Base: $API_BASE"
+          echo "Timestamp: $(date)"
+          echo ""
+          node tests/v2-full-chain-test.js
+          EXIT_CODE=$?
+          echo ""
+          echo "=== E2E tests completed with exit code: $EXIT_CODE ==="
+          exit $EXIT_CODE
+        env:
+          API_BASE: "http://localhost:3000"
+
+      - name: 📝 Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-test-results
+          path: |
+            /tmp/nextjs.log
+            frontend/prisma/dev.db
+
+      - name: 🛑 Stop development server
+        if: always()
+        run: |
+          echo "=== Cleaning up ==="
+          if [ -f /tmp/nextjs.pid ]; then
+            PID=$(cat /tmp/nextjs.pid)
+            echo "Stopping server with PID $PID"
+            kill $PID 2>/dev/null || true
+            sleep 2
+            echo "✅ Server stopped"
+          fi

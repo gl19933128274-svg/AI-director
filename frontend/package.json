@@ -9,13 +9,22 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "check:api": "powershell -ExecutionPolicy Bypass -File ./scripts/check-api-keys.ps1",
+    "check:secrets": "node scripts/check-secrets.js",
+    "precommit": "node scripts/pre-commit-check.js",
+    "predeploy": "npm run check:secrets && npm run build"
   },
   "dependencies": {
+    "@prisma/client": "^5.22.0",
+    "bcrypt": "^6.0.0",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.378.0",
     "next": "^14.2.3",
+    "prisma": "^5.22.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "replicate": "^1.4.0"
   },
   "devDependencies": {
     "@babel/core": "^7.29.7",
@@ -25,11 +34,13 @@
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/jest": "^30.0.0",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.12.7",
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.0",
     "autoprefixer": "^10.4.19",
     "babel-jest": "^30.4.1",
+    "dotenv": "^17.4.2",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.3",
     "jest": "^30.4.2",

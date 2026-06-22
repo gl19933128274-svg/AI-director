@@ -1,0 +1,22 @@
+# AI导演系统灰度版本 Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-director-canary
+  namespace: production
+  labels:
+    app: ai-director
+    track: canary
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "80"
+spec:
+  type: ClusterIP
+  selector:
+    app: ai-director
+    track: canary
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP

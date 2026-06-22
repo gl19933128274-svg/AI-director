@@ -1,0 +1,113 @@
+# Grafana Helm Values 配置
+# 用于 Kubernetes 集群部署
+
+# 副本数
+replicas: 2
+
+# 管理员用户配置
+adminUser: admin
+adminPassword: admin123
+
+# 持久化存储
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClassName: "ssd"
+  accessModes:
+    - ReadWriteOnce
+
+# 资源配置
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 1Gi
+
+# Ingress 配置
+ingress:
+  enabled: true
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - grafana.monitoring.example.com
+  tls:
+    - secretName: grafana-tls
+      hosts:
+        - grafana.monitoring.example.com
+
+# 数据源配置 (通过 sidecar 自动加载)
+datasources:
+  enabled: true
+  uid: prometheus
+  url: http://prometheus-server.monitoring:9090
+
+# Dashboard 配置 (通过 sidecar 自动加载)
+dashboardProviders:
+  dashboardproviders.yaml:
+    apiVersion: 1
+    providers:
+      - name: 'default'
+        orgId: 1
+        folder: ''
+        type: file
+        disableDeletion: false
+        updateIntervalSeconds: 30
+        options:
+          path: /var/lib/grafana/dashboards
+
+dashboards:
+  default:
+    prometheus-stats:
+      gnetId: 2
+      revision: 2
+      datasource: Prometheus
+    nginx-ingress:
+      gnetId: 9614
+      revision: 1
+      datasource: Prometheus
+
+# 插件配置
+plugins:
+  - grafana-piechart-panel
+  - grafana-clock-panel
+
+# 配置选项
+config:
+  # 安全配置
+  security:
+    disable_initial_admin_creation: false
+  
+  # 服务器配置
+  server:
+    root_url: "%(protocol)s://%(domain)s/"
+  
+  # 日志配置
+  log:
+    mode: console
+  
+  # 告警配置
+  alerting:
+    enabled: true
+
+# 服务监控
+serviceMonitor:
+  enabled: true
+  interval: 30s
+  scrapeTimeout: 10s
+
+# Pod 安全策略
+podSecurityPolicy:
+  enabled: true
+  annotations:
+    apparmor.security.beta.kubernetes.io/allowedProfileNames: runtime/default
+    seLinux:
+      rule: RunAsAny
+    supplementalGroups:
+      rule: RunAsAny
+    runAsUser:
+      rule: RunAsAny
+    fsGroup:
+      rule: RunAsAny

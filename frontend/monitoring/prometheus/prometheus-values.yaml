@@ -1,0 +1,85 @@
+# Prometheus Helm Values 配置
+# 用于 Kubernetes 集群部署
+
+server:
+  replicaCount: 2
+  
+  # 持久化存储
+  persistentVolume:
+    enabled: true
+    size: 50Gi
+    storageClass: "ssd"
+  
+  # 资源配置
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  
+  # 启动参数
+  global:
+    scrape_interval: 15s
+    evaluation_interval: 15s
+  
+  # 告警规则
+  alertmanager:
+    enabled: true
+  
+  # 远程写入 (可选)
+  remoteWrite:
+    - url: http://thanos-receive:19291/api/v1/receive
+      queue_config:
+        max_samples: 10000
+        capacity: 50000
+
+alertmanager:
+  replicaCount: 2
+  
+  persistentVolume:
+    enabled: true
+    size: 10Gi
+  
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Kube State Metrics
+kubeStateMetrics:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# Node Exporter
+nodeExporter:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# PushGateway
+pushgateway:
+  enabled: true
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+
+# 服务监控配置
+serviceAccounts:
+  server:
+    create: true
+    name: "prometheus-server"
+
+# 网络策略
+networkPolicies:
+  enabled: true

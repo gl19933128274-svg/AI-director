@@ -1,0 +1,97 @@
+[
+  {
+    "stage": "Stage 1 - 10 QPS",
+    "qps": 10,
+    "duration": 60.078,
+    "totalRequests": 0,
+    "successRate": "0.00",
+    "avgResponseTime": "0.00",
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "errorRate": "NaN",
+    "errors": {
+      "timeout": 0,
+      "connection": 0,
+      "server": 0,
+      "client": 0,
+      "other": 0
+    }
+  },
+  {
+    "stage": "Stage 2 - 50 QPS",
+    "qps": 50,
+    "duration": 60.031,
+    "totalRequests": 0,
+    "successRate": "0.00",
+    "avgResponseTime": "0.00",
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "errorRate": "NaN",
+    "errors": {
+      "timeout": 0,
+      "connection": 0,
+      "server": 0,
+      "client": 0,
+      "other": 0
+    }
+  },
+  {
+    "stage": "Stage 3 - 100 QPS",
+    "qps": 100,
+    "duration": 60.15,
+    "totalRequests": 0,
+    "successRate": "0.00",
+    "avgResponseTime": "0.00",
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "errorRate": "NaN",
+    "errors": {
+      "timeout": 0,
+      "connection": 0,
+      "server": 0,
+      "client": 0,
+      "other": 0
+    }
+  },
+  {
+    "stage": "Stage 4 - 500 QPS",
+    "qps": 500,
+    "duration": 120.037,
+    "totalRequests": 0,
+    "successRate": "0.00",
+    "avgResponseTime": "0.00",
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "errorRate": "NaN",
+    "errors": {
+      "timeout": 0,
+      "connection": 0,
+      "server": 0,
+      "client": 0,
+      "other": 0
+    }
+  },
+  {
+    "stage": "Stage 5 - 1000 QPS",
+    "qps": 1000,
+    "duration": 120.252,
+    "totalRequests": 0,
+    "successRate": "0.00",
+    "avgResponseTime": "0.00",
+    "p50": 0,
+    "p95": 0,
+    "p99": 0,
+    "errorRate": "NaN",
+    "errors": {
+      "timeout": 0,
+      "connection": 0,
+      "server": 0,
+      "client": 0,
+      "other": 0
+    }
+  }
+]

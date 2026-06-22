@@ -12,6 +12,7 @@ import {
   updateProjectStatus,
   createVideoData,
 } from '@/utils/videoGeneration';
+import { generateRequestId, logUserAction, logInfo, logError, logWarn, setDevMode } from '@/services/logger';
 
 interface VideoStage {
   id: string;
@@ -56,17 +57,29 @@ export default function VideoPage() {
   const [errorMessage, setErrorMessage] = useState<string>('');
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
 
-  // 用于存储定时器引用，以便清理
+  const requestId = React.useRef(generateRequestId());
+
   const intervalRef = React.useRef<number | null>(null);
   const timeoutRefs = React.useRef<number[]>([]);
 
-  // 从 localStorage 读取项目数据
   useEffect(() => {
+    setDevMode(process.env.NEXT_PUBLIC_ENV_MODE === 'dev');
+    
+    logUserAction(requestId.current, 'page_load', '/video');
+    logInfo(requestId.current, 'FRONTEND_PAGE_LOAD', 'frontend', 'started', {
+      timestamp: new Date().toISOString(),
+      page: '/video'
+    });
+    
     const data = localStorage.getItem('currentProject');
     if (data) {
       const parsed: ProjectData = JSON.parse(data);
       setProjectData(parsed);
-      console.log(`[LOG] 视频页面 - 加载项目数据: 状态=${parsed.status}, 镜头数=${parsed.shots?.length || 0}`);
+      logInfo(requestId.current, 'FRONTEND_PROJECT_LOADED', 'frontend', 'success', {
+        status: parsed.status,
+        shots: parsed.shots?.length || 0,
+        description: parsed.description?.substring(0, 100)
+      });
       
       if (parsed.shots && parsed.shots.length > 0) {
         setShots(parsed.shots.map((s) => ({
@@ -74,8 +87,13 @@ export default function VideoPage() {
           duration: s.duration,
           status: 'waiting' as const,
         })));
-        console.log(`[LOG] 视频页面 - 初始化镜头数据: ${parsed.shots.length}个镜头`);
+        logInfo(requestId.current, 'FRONTEND_SHOTS_INIT', 'frontend', 'success', {
+          shots: parsed.shots.map(s => ({num: s.num, duration: s.duration}))
+        });
       }
+    } else {
+      logWarn(requestId.current, 'FRONTEND_NO_PROJECT', 'frontend', 
+        'No project data found in localStorage, using default shots', {}, {});
     }
   }, []);
 
@@ -93,14 +111,20 @@ export default function VideoPage() {
   }, []);
 
   const handleStartRender = () => {
+    logUserAction(requestId.current, 'video_generation_start', '/video');
+    
     setIsGenerating(true);
     setCurrentStage('render');
     setProgress(0);
     setHasError(false);
     setErrorMessage('');
-    console.log(`[LOG] 视频页面 - 开始视频生成: 镜头数=${shots.length}, 总时长=${shots.reduce((acc, s) => acc + s.duration, 0)}s`);
+    
+    logInfo(requestId.current, 'FRONTEND_RENDER_START', 'frontend', 'started', {
+      shots: shots.length,
+      totalDuration: shots.reduce((acc, s) => acc + s.duration, 0),
+      shotsDetails: shots.map(s => ({num: s.num, duration: s.duration, status: s.status}))
+    });
 
-    // 使用 ref 存储当前镜头索引，避免闭包陷阱
     const currentShotRef = { value: 0 };
     
     // 清理之前的定时器
@@ -123,7 +147,8 @@ export default function VideoPage() {
           setErrorMessage(msg);
           setIsGenerating(false);
           clearInterval(intervalRef.current!);
-          console.log(`[LOG] 视频页面 - 视频生成失败: ${msg}`);
+          console.log(`[FrontendRender] === Video Generation Failed ===`);
+          console.log(`[FrontendRender] error=${msg}`);
           return;
         }
         
@@ -135,13 +160,15 @@ export default function VideoPage() {
         // 更新项目状态
         updateProjectStatus('video-ready');
         
-        console.log(`[LOG] 视频页面 - 视频生成完成, 状态更新为video-ready`);
+        console.log(`[FrontendRender] === Video Generation Completed ===`);
+        console.log(`[FrontendRender] status=video-ready, progress=100%`);
+        console.log(`[FrontendRender] total_shots=${shots.length}, total_duration=${shots.reduce((acc, s) => acc + s.duration, 0)}s`);
         return;
       }
 
       // 使用提取的函数处理镜头渲染
       setShots(prev => processShotRendering(prev, currentShot));
-      console.log(`[LOG] 视频页面 - 正在生成镜头 ${currentShot + 1}/${shots.length}`);
+      console.log(`[FrontendRender] Rendering shot ${currentShot + 1}/${shots.length}`);
 
       // 捕获当前镜头索引到闭包中，避免闭包陷阱
       const shotIndex = currentShot;
@@ -150,29 +177,31 @@ export default function VideoPage() {
         // 从 refs 中移除已完成的 timeout
         timeoutRefs.current = timeoutRefs.current.filter(id => id !== timeoutId);
         
-        // 模拟5%概率单个镜头失败
         if (shouldSimulateFailure(0.05)) {
-          const msg = `镜头 ${shotIndex + 1} 生成失败`;
+          const msg = `Shot ${shotIndex + 1} generation failed`;
           setHasError(true);
           setErrorMessage(msg);
           setIsGenerating(false);
           if (intervalRef.current) {
             clearInterval(intervalRef.current);
           }
-          console.log(`[LOG] 视频页面 - ${msg}`);
+          logError(requestId.current, 'FRONTEND_SHOT_FAILED', 'frontend', 'SHOT_GENERATION_ERROR', 
+            msg, {
+              shotNum: shotIndex + 1
+            }, {}, requestId.current);
           return;
         }
 
-        // 使用提取的函数完成镜头
         setShots(prev => completeShot(prev, shotIndex));
         
-        // 更新 currentShot
         currentShotRef.value++;
         
-        // 使用提取的函数计算进度
         const newProgress = calculateProgress(currentShotRef.value, shots.length);
         setProgress(newProgress);
-        console.log(`[LOG] 视频页面 - 镜头 ${currentShotRef.value} 生成完成, 进度=${newProgress}%`);
+        logInfo(requestId.current, 'FRONTEND_SHOT_COMPLETE', 'frontend', 'success', {
+          shotNum: currentShotRef.value,
+          progress: newProgress
+        });
       }, 1200 + Math.random() * 800);
       
       // 存储 timeout 引用以便清理
@@ -181,36 +210,37 @@ export default function VideoPage() {
   };
 
   const handleRetry = () => {
-    console.log(`[LOG] 视频页面 - 用户重试视频生成`);
-    // 使用提取的函数重置镜头状态
+    logUserAction(requestId.current, 'video_retry', '/video');
+    logInfo(requestId.current, 'FRONTEND_RETRY', 'frontend', 'started', {});
     setShots(resetAllShots(shots));
     handleStartRender();
   };
 
   const handleDownload = () => {
     if (isDownloading) return;
+    logUserAction(requestId.current, 'video_download', '/video');
+    logInfo(requestId.current, 'FRONTEND_DOWNLOAD_START', 'frontend', 'started', {});
+    
     setIsDownloading(true);
     
-    // 使用提取的函数创建视频数据
     const videoData = createVideoData(projectData, shots);
 
-    // 创建 JSON 文件作为模拟视频
     const blob = new Blob([JSON.stringify(videoData, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
 
-    // 创建下载链接
     const link = document.createElement('a');
     link.href = url;
     link.download = `AI视频_${Date.now()}.json`;
     document.body.appendChild(link);
     link.click();
 
-    // 清理
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
 
     setIsDownloading(false);
-    console.log(`[LOG] 视频页面 - 视频下载完成: 文件名=AI视频_${Date.now()}.json`);
+    logInfo(requestId.current, 'FRONTEND_DOWNLOAD_COMPLETE', 'frontend', 'success', {
+      fileName: `AI视频_${Date.now()}.json`
+    });
     alert('视频已下载！（模拟下载：JSON文件）');
   };
 

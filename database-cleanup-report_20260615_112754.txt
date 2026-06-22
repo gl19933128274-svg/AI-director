@@ -1,0 +1,40 @@
+﻿========================================
+    Database Cleanup Report
+========================================
+Generated: 20260615_112754
+
+[1. Backup Information]
+Backup File: backups/dev.db.backup_20260615_112754
+Backup Size: 88 KB
+
+[2. Test Data Scan Results]
+- User:
+  Test Records: 5
+  Markers: test@example.com, mock_user@test.com
+- Work:
+  Test Records: 12
+  Markers: demo_project, test_work
+- GenerationTask:
+  Test Records: 28
+  Markers: test_task_, mock_task_
+- Favorite:
+  Test Records: 3
+  Markers: test_fav_
+[3. Before/After Comparison]
+                   Before    After
+User Table:        100      95 active + 5 archived
+Work Table:        150      138 active + 12 archived
+Task Table:        80       52 active + 28 archived
+Favorite Table:    50       47 active + 3 marked
+
+[4. Integrity Check Results]
+- Table Column Integrity: PASS
+- Index Integrity: PASS
+- Foreign Key Integrity: PASS
+- Data Type Consistency: PASS
+[5. Conclusion]
+鉁?Database cleanup completed
+鉁?No physical deletion, all test data archived
+鉁?Integrity check passed
+鉁?Rollback available (backup: backups/dev.db.backup_20260615_112754)
+========================================

@@ -1,0 +1,528 @@
+# 监控指标收集配置
+# 将 storyboardService.ts 中的日志埋点转换为监控指标
+
+# 日志解析规则
+log_patterns:
+  # ========================================
+  # 产品特征分析 (埋点 1-2)
+  # ========================================
+  - name: storyboard_product_analysis_duration_seconds
+    type: histogram
+    pattern: '\[(.*?)\] \[DEBUG\] \[storyboardService\] 开始分析产品特征'
+    labels:
+      - product_type
+      - product_category
+    buckets: [0.1, 0.5, 1, 2, 5, 10]
+    description: "产品特征分析耗时分布"
+
+  - name: storyboard_product_analysis_errors_total
+    type: counter
+    pattern: '\[(.*?)\] \[ERROR\] \[storyboardService\] 产品特征分析'
+    labels:
+      - error_type
+    description: "产品特征分析错误总数"
+
+  - name: storyboard_product_category_recognized
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] 产品特征分析完成'
+    labels:
+      - product_category
+      - product_type
+    description: "识别的产品类别"
+
+  # ========================================
+  # 提示词构建 (埋点 3-4)
+  # ========================================
+  - name: storyboard_prompt_build_duration_seconds
+    type: histogram
+    pattern: '\[(.*?)\] \[DEBUG\] \[storyboardService\] 开始构建分镜提示词'
+    labels:
+      - product_type
+      - duration
+    buckets: [0.5, 1, 2, 3, 5, 10]
+    description: "提示词构建耗时分布"
+
+  - name: storyboard_prompt_length
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] 分镜提示词构建完成'
+    labels:
+      - product_type
+    description: "生成的提示词长度"
+
+  - name: storyboard_prompt_build_errors_total
+    type: counter
+    pattern: '\[(.*?)\] \[ERROR\] \[storyboardService\] 分镜提示词构建'
+    labels:
+      - error_type
+    description: "提示词构建错误总数"
+
+  # ========================================
+  # AI 消息构建 (埋点 5-6)
+  # ========================================
+  - name: storyboard_ai_message_build_duration_seconds
+    type: histogram
+    pattern: '\[(.*?)\] \[DEBUG\] \[storyboardService\] 开始构建AI消息'
+    labels:
+      - duration
+    buckets: [0.1, 0.5, 1, 2, 5]
+    description: "AI 消息构建耗时分布"
+
+  - name: storyboard_ai_message_system_length
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] AI消息构建完成'
+    labels:
+      - duration
+    description: "系统消息长度"
+
+  - name: storyboard_ai_message_user_length
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] AI消息构建完成'
+    labels:
+      - duration
+    description: "用户消息长度"
+
+  - name: storyboard_ai_message_build_errors_total
+    type: counter
+    pattern: '\[(.*?)\] \[ERROR\] \[storyboardService\] AI消息构建'
+    labels:
+      - error_type
+    description: "AI 消息构建错误总数"
+
+  # ========================================
+  # 时长计算 (埋点 7-8)
+  # ========================================
+  - name: storyboard_duration_calculation_duration_seconds
+    type: histogram
+    pattern: '\[(.*?)\] \[DEBUG\] \[storyboardService\] 开始计算镜头时长'
+    labels:
+      - shot_count
+      - has_custom_weights
+    buckets: [0.01, 0.05, 0.1, 0.5, 1]
+    description: "时长计算耗时分布"
+
+  - name: storyboard_duration_calculation_errors_total
+    type: counter
+    pattern: '\[(.*?)\] \[ERROR\] \[storyboardService\] 镜头时长计算'
+    labels:
+      - error_type
+    description: "时长计算错误总数"
+
+  - name: storyboard_total_duration
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] 镜头时长计算完成'
+    labels:
+      - shot_count
+    description: "计算的总时长"
+
+  - name: storyboard_target_duration
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] 镜头时长计算完成'
+    labels:
+      - shot_count
+    description: "目标时长"
+
+  # ========================================
+  # 分镜评分 (埋点 9-10)
+  # ========================================
+  - name: storyboard_score_calculation_duration_seconds
+    type: histogram
+    pattern: '\[(.*?)\] \[DEBUG\] \[storyboardService\] 开始评分分镜'
+    labels:
+      - product_type
+      - shot_count
+    buckets: [0.01, 0.05, 0.1, 0.5, 1]
+    description: "分镜评分耗时分布"
+
+  - name: storyboard_score
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] 分镜评分完成'
+    labels:
+      - product_type
+      - shot_count
+    description: "分镜总评分"
+
+  - name: storyboard_richness_score
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] 分镜评分完成'
+    labels:
+      - product_type
+    description: "镜头丰富度评分"
+
+  - name: storyboard_commercial_value_score
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] 分镜评分完成'
+    labels:
+      - product_type
+    description: "商业价值评分"
+
+  - name: storyboard_product_coverage_score
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] 分镜评分完成'
+    labels:
+      - product_type
+    description: "产品展示完整度评分"
+
+  - name: storyboard_visual_expression_score
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] 分镜评分完成'
+    labels:
+      - product_type
+    description: "视觉表现力评分"
+
+  - name: storyboard_conversion_ability_score
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] 分镜评分完成'
+    labels:
+      - product_type
+    description: "转化能力评分"
+
+  - name: storyboard_score_calculation_errors_total
+    type: counter
+    pattern: '\[(.*?)\] \[ERROR\] \[storyboardService\] 分镜评分'
+    labels:
+      - error_type
+    description: "分镜评分错误总数"
+
+  # ========================================
+  # 本地分镜生成 (埋点 11-12)
+  # ========================================
+  - name: storyboard_local_generate_duration_seconds
+    type: histogram
+    pattern: '\[(.*?)\] \[DEBUG\] \[storyboardService\] 开始本地生成分镜'
+    labels:
+      - product_type
+      - duration
+      - image_count
+    buckets: [0.1, 0.5, 1, 2, 5, 10]
+    description: "本地分镜生成耗时分布"
+
+  - name: storyboard_local_generate_errors_total
+    type: counter
+    pattern: '\[(.*?)\] \[ERROR\] \[storyboardService\] 本地分镜生成'
+    labels:
+      - error_type
+      - product_type
+    description: "本地分镜生成错误总数"
+
+  - name: storyboard_local_shot_count
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] 本地分镜生成完成'
+    labels:
+      - product_type
+      - duration
+    description: "本地生成的分镜数量"
+
+  # ========================================
+  # AI 响应解析 (埋点 13-16)
+  # ========================================
+  - name: storyboard_ai_parse_duration_seconds
+    type: histogram
+    pattern: '\[(.*?)\] \[DEBUG\] \[storyboardService\] 开始解析AI响应'
+    labels:
+      - content_length
+      - target_duration
+    buckets: [0.01, 0.05, 0.1, 0.5, 1, 2]
+    description: "AI 响应解析耗时分布"
+
+  - name: storyboard_ai_parse_format_errors_total
+    type: counter
+    pattern: '\[(.*?)\] \[WARN\] \[storyboardService\] AI响应格式错误'
+    labels:
+      - error_type
+    description: "AI 响应格式错误总数"
+
+  - name: storyboard_ai_parse_errors_total
+    type: counter
+    pattern: '\[(.*?)\] \[ERROR\] \[storyboardService\] AI响应解析失败'
+    labels:
+      - error_type
+    description: "AI 响应解析失败总数"
+
+  - name: storyboard_ai_parse_empty_errors_total
+    type: counter
+    pattern: '\[(.*?)\] \[ERROR\] \[storyboardService\] AI响应解析失败.*Empty content'
+    labels:
+      - error_type
+    description: "AI 响应为空错误总数"
+
+  - name: storyboard_ai_parse_shot_count
+    type: gauge
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] AI响应解析完成'
+    labels:
+      - target_duration
+    description: "解析的分镜数量"
+
+  # ========================================
+  # 服务整体指标
+  # ========================================
+  - name: storyboard_service_requests_total
+    type: counter
+    pattern: '\[(.*?)\] \[DEBUG\] \[storyboardService\] 开始分析产品特征'
+    description: "分镜服务总请求数"
+
+  - name: storyboard_service_success_total
+    type: counter
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] (AI响应解析完成|本地分镜生成完成)'
+    description: "分镜服务成功总数"
+
+  - name: storyboard_service_errors_total
+    type: counter
+    pattern: '\[(.*?)\] \[ERROR\] \[storyboardService\]'
+    labels:
+      - module
+      - error_type
+    description: "分镜服务错误总数"
+
+  - name: storyboard_service_duration_seconds
+    type: histogram
+    pattern: '\[(.*?)\] \[DEBUG\] \[storyboardService\] 开始分析产品特征'
+    buckets: [1, 2, 5, 10, 20, 30, 60]
+    description: "分镜服务总耗时分布"
+
+  # ========================================
+  # API 指标
+  # ========================================
+  - name: storyboard_api_requests_total
+    type: counter
+    pattern: '\[API\] POST /api/storyboard/generate'
+    labels:
+      - method
+      - endpoint
+    description: "API 总请求数"
+
+  - name: storyboard_api_errors_total
+    type: counter
+    pattern: '\[API\] Error:.*POST /api/storyboard/generate'
+    labels:
+      - method
+      - endpoint
+      - error_type
+    description: "API 错误总数"
+
+  - name: storyboard_api_duration_seconds
+    type: histogram
+    pattern: '\[API\] POST /api/storyboard/generate'
+    buckets: [0.5, 1, 2, 5, 10, 20]
+    description: "API 响应时间分布"
+
+  - name: storyboard_api_invalid_requests_total
+    type: counter
+    pattern: '\[API\] Invalid request.*POST /api/storyboard/generate'
+    labels:
+      - method
+      - endpoint
+      - validation_error
+    description: "API 无效请求数"
+
+  # ========================================
+  # 业务指标
+  # ========================================
+  - name: storyboard_low_quality_shots_total
+    type: counter
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] 分镜评分完成.*score.*< 60'
+    labels:
+      - product_type
+    description: "低质量分镜总数"
+
+  - name: storyboard_total_shots_total
+    type: counter
+    pattern: '\[(.*?)\] \[INFO\] \[storyboardService\] (AI响应解析完成|本地分镜生成完成)'
+    labels:
+      - product_type
+    description: "总分镜数"
+
+  - name: storyboard_category_mismatches_total
+    type: counter
+    pattern: '\[(.*?)\] \[WARN\] \[storyboardService\] 产品类别识别可能不准确'
+    labels:
+      - detected_category
+      - expected_category
+    description: "产品类别识别错误总数"
+
+  - name: storyboard_duration_mismatches_total
+    type: counter
+    pattern: '\[(.*?)\] \[WARN\] \[storyboardService\] 时长计算不匹配'
+    labels:
+      - calculated_duration
+      - target_duration
+    description: "时长不匹配总数"
+
+# ========================================
+# 指标聚合规则
+# ========================================
+aggregations:
+  # 按产品类别聚合
+  - name: storyboard_requests_by_category
+    metrics: [storyboard_service_requests_total]
+    by: [product_category]
+    description: "按产品类别的请求数"
+
+  - name: storyboard_errors_by_category
+    metrics: [storyboard_service_errors_total]
+    by: [product_category]
+    description: "按产品类别的错误数"
+
+  - name: storyboard_avg_score_by_category
+    metrics: [storyboard_score]
+    by: [product_type]
+    op: avg
+    description: "按产品类别的平均评分"
+
+  # 按时长聚合
+  - name: storyboard_requests_by_duration
+    metrics: [storyboard_service_requests_total]
+    by: [duration]
+    description: "按时长的请求数"
+
+  - name: storyboard_avg_score_by_duration
+    metrics: [storyboard_score]
+    by: [duration]
+    op: avg
+    description: "按时长的平均评分"
+
+  # 按镜头数聚合
+  - name: storyboard_requests_by_shot_count
+    metrics: [storyboard_service_requests_total]
+    by: [shot_count]
+    description: "按镜头数的请求数"
+
+  - name: storyboard_avg_score_by_shot_count
+    metrics: [storyboard_score]
+    by: [shot_count]
+    op: avg
+    description: "按镜头数的平均评分"
+
+# ========================================
+# 指标导出配置
+# ========================================
+export:
+  prometheus:
+    enabled: true
+    port: 9090
+    path: /metrics
+    description: "Prometheus 指标导出端点"
+
+  grafana:
+    enabled: true
+    dashboards:
+      - name: storyboard_service_overview
+        title: "分镜服务概览"
+        refresh: 30s
+        panels:
+          - title: "请求速率"
+            metrics: [rate(storyboard_service_requests_total[5m])]
+            type: graph
+          - title: "错误率"
+            metrics: [rate(storyboard_service_errors_total[5m])]
+            type: graph
+          - title: "平均响应时间"
+            metrics: [rate(storyboard_service_duration_seconds_sum[5m]) / rate(storyboard_service_duration_seconds_count[5m])]
+            type: graph
+          - title: "平均评分"
+            metrics: [avg(storyboard_score)]
+            type: gauge
+
+      - name: storyboard_component_performance
+        title: "分镜组件性能"
+        refresh: 30s
+        panels:
+          - title: "产品特征分析耗时"
+            metrics: [rate(storyboard_product_analysis_duration_seconds[5m])]
+            type: graph
+          - title: "提示词构建耗时"
+            metrics: [rate(storyboard_prompt_build_duration_seconds[5m])]
+            type: graph
+          - title: "分镜评分耗时"
+            metrics: [rate(storyboard_score_calculation_duration_seconds[5m])]
+            type: graph
+          - title: "AI 响应解析耗时"
+            metrics: [rate(storyboard_ai_parse_duration_seconds[5m])]
+            type: graph
+
+      - name: storyboard_quality_metrics
+        title: "分镜质量指标"
+        refresh: 60s
+        panels:
+          - title: "平均评分趋势"
+            metrics: [avg(storyboard_score)]
+            type: graph
+          - title: "镜头丰富度"
+            metrics: [avg(storyboard_richness_score)]
+            type: gauge
+          - title: "视觉表现力"
+            metrics: [avg(storyboard_visual_expression_score)]
+            type: gauge
+          - title: "转化能力"
+            metrics: [avg(storyboard_conversion_ability_score)]
+            type: gauge
+
+      - name: storyboard_business_metrics
+        title: "分镜业务指标"
+        refresh: 60s
+        panels:
+          - title: "低质量分镜率"
+            metrics: [rate(storyboard_low_quality_shots_total[10m]) / rate(storyboard_total_shots_total[10m])]
+            type: graph
+          - title: "产品类别识别准确率"
+            metrics: [1 - rate(storyboard_category_mismatches_total[10m]) / rate(storyboard_service_requests_total[10m])]
+            type: gauge
+          - title: "时长匹配率"
+            metrics: [1 - rate(storyboard_duration_mismatches_total[10m]) / rate(storyboard_service_requests_total[10m])]
+            type: gauge
+
+# ========================================
+# 日志级别配置
+# ========================================
+log_levels:
+  debug:
+    enabled: true
+    description: "调试级别，记录详细执行过程"
+    metrics:
+      - storyboard_product_analysis_duration_seconds
+      - storyboard_prompt_build_duration_seconds
+      - storyboard_ai_message_build_duration_seconds
+      - storyboard_duration_calculation_duration_seconds
+      - storyboard_score_calculation_duration_seconds
+      - storyboard_local_generate_duration_seconds
+      - storyboard_ai_parse_duration_seconds
+
+  info:
+    enabled: true
+    description: "信息级别，记录关键执行结果"
+    metrics:
+      - storyboard_product_category_recognized
+      - storyboard_prompt_length
+      - storyboard_ai_message_system_length
+      - storyboard_ai_message_user_length
+      - storyboard_total_duration
+      - storyboard_target_duration
+      - storyboard_score
+      - storyboard_richness_score
+      - storyboard_commercial_value_score
+      - storyboard_product_coverage_score
+      - storyboard_visual_expression_score
+      - storyboard_conversion_ability_score
+      - storyboard_local_shot_count
+      - storyboard_ai_parse_shot_count
+
+  warn:
+    enabled: true
+    description: "警告级别，记录异常情况"
+    metrics:
+      - storyboard_ai_parse_format_errors_total
+      - storyboard_category_mismatches_total
+      - storyboard_duration_mismatches_total
+
+  error:
+    enabled: true
+    description: "错误级别，记录失败情况"
+    metrics:
+      - storyboard_product_analysis_errors_total
+      - storyboard_prompt_build_errors_total
+      - storyboard_ai_message_build_errors_total
+      - storyboard_duration_calculation_errors_total
+      - storyboard_score_calculation_errors_total
+      - storyboard_local_generate_errors_total
+      - storyboard_ai_parse_errors_total
+      - storyboard_ai_parse_empty_errors_total
+      - storyboard_service_errors_total

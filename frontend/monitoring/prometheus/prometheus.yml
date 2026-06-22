@@ -1,0 +1,116 @@
+# Prometheus 主配置文件
+# AI导演系统可观测性采集配置
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files:
+  - "/etc/prometheus/rules/*.yml"
+
+scrape_configs:
+  # Prometheus 自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # ==================== AI导演系统 API 监控 ====================
+  
+  # 稳定版本 (v1) - 生产环境
+  - job_name: 'ai-director-stable'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - production
+    relabel_configs:
+      # 只采集 ai-director stable 版本
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: ai-director
+      - source_labels: [__meta_kubernetes_pod_label_track]
+        action: keep
+        regex: stable
+      # 添加版本标签
+      - source_labels: [__meta_kubernetes_pod_label_version]
+        target_label: version
+        replacement: 'v1-stable'
+      - source_labels: [__meta_kubernetes_pod_label_track]
+        target_label: track
+        replacement: 'stable'
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # 灰度版本 (v2) - 灰度环境
+  - job_name: 'ai-director-canary'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - production
+    relabel_configs:
+      # 只采集 ai-director canary 版本
+      - source_labels: [__meta_kubernetes_pod_label_app]
+        action: keep
+        regex: ai-director
+      - source_labels: [__meta_kubernetes_pod_label_track]
+        action: keep
+        regex: canary
+      # 添加版本标签
+      - source_labels: [__meta_kubernetes_pod_label_version]
+        target_label: version
+        replacement: 'v2-canary'
+      - source_labels: [__meta_kubernetes_pod_label_track]
+        target_label: track
+        replacement: 'canary'
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # ==================== Nginx Ingress 监控 ====================
+  
+  # Ingress Controller 监控
+  - job_name: 'nginx-ingress-controller'
+    kubernetes_sd_configs:
+      - role: pod
+        namespaces:
+          names:
+            - ingress-nginx
+    relabel_configs:
+      - source_labels: [__meta_kubernetes_pod_container_name]
+        action: keep
+        regex: nginx-ingress-controller
+      # 添加 Ingress 名称标签
+      - source_labels: [__meta_kubernetes_pod_annotationpresent_nginx_ingress_kubernetes_io_canary]
+        target_label: is_canary
+        replacement: 'false'
+      - source_labels: [__meta_kubernetes_ingress_name]
+        target_label: ingress
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # ==================== Node Exporter 节点监控 ====================
+  
+  - job_name: 'node-exporter'
+    kubernetes_sd_configs:
+      - role: node
+    relabel_configs:
+      - source_labels: [__address]
+        regex: '(.*):10250'
+        replacement: '${1}:9100'
+        target_label: __metrics_path__
+        action: replace
+    metrics_path: /metrics
+
+  # ==================== GPU 监控 (可选) ====================
+  
+  - job_name: 'nvidia-gpu-exporter'
+    static_configs:
+      - targets: ['nvidia-dcgm-exporter:9400']
+    relabel_configs:
+      - source_labels: [exported_job]
+        target_label: job

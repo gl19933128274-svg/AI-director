@@ -1,0 +1,152 @@
+// AI导演系统 V2.0 数据库模型 - SQLite版本（用于测试）
+// 文档参考: docs/TECH_SPEC_V2.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// 用户角色枚举
+enum UserRole {
+  user      // 普通用户
+  creator   // 创作者用户
+  admin     // 管理员
+}
+
+// 会员等级枚举
+enum MemberLevel {
+  free     // 免费版
+  pro      // Pro版
+  studio   // Studio版
+}
+
+// 作品状态枚举
+enum WorkStatus {
+  draft        // 草稿
+  generating   // 生成中
+  completed    // 已完成
+  published    // 已发布
+  deleted      // 已删除
+}
+
+// 作品可见性枚举
+enum WorkVisibility {
+  public    // 公开
+  private   // 私有
+  unlisted  // 未列出
+}
+
+// 用户表
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  phone          String?      @unique
+  passwordHash   String
+  nickname       String
+  avatar         String?
+  role           UserRole     @default(user)
+  memberLevel    MemberLevel  @default(free)
+  credits        Int          @default(0)
+  emailVerified  Boolean      @default(false)
+  phoneVerified  Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // 关联关系
+  works            Work[]
+  favorites        Favorite[]
+  subscriptions    Subscription[]
+  generationTasks  GenerationTask[]
+}
+
+// 作品表
+model Work {
+  id          String          @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  thumbnail   String?
+  videoUrl    String?
+  status      WorkStatus     @default(draft)
+  visibility  WorkVisibility @default(private)
+  tags        String[]       @default([])
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // 关联关系
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favorites   Favorite[]
+}
+
+// 收藏表
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  workId    String
+  createdAt DateTime @default(now())
+
+  // 关联关系
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  work      Work     @relation(fields: [workId], references: [id], onDelete: Cascade)
+
+  // 唯一约束
+  @@unique([userId, workId])
+}
+
+// 模板表
+model Template {
+  id            String       @id @default(cuid())
+  name          String
+  description   String?
+  thumbnail     String?
+  config        Json         @default("{}")
+  requiredLevel MemberLevel  @default(free)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+// 订阅记录表
+model Subscription {
+  id             String       @id @default(cuid())
+  userId         String
+  level          MemberLevel
+  startDate      DateTime
+  endDate        DateTime?
+  status         String       @default("active")
+  paymentMethod  String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // 关联关系
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// AI生成任务表
+model GenerationTask {
+  id            String   @id @default(cuid())
+  userId        String?
+  type          String   // storyboard | video
+  status        String   @default("pending")
+  input         Json
+  output        Json?
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // 关联关系
+  user          User?    @relation(fields: [userId], references: [id])
+}
+
+// 系统日志表
+model SystemLog {
+  id          String   @id @default(cuid())
+  level       String   // info | warn | error | critical
+  module      String
+  message     String
+  details     Json?
+  createdAt   DateTime @default(now())
+}

@@ -1,0 +1,82 @@
+# ==============================================================================
+# 一键回滚配置文件
+# ==============================================================================
+
+# 版本配置
+version: "2.0"
+
+# 目标回滚版本
+target_version: "v1.9.0"
+current_version: "v2.0.0"
+
+# 备份配置
+backup:
+  directory: "./backups"
+  retention_days: 7
+  auto_cleanup: true
+
+# 服务配置
+service:
+  name: "ai-director"
+  deployment: "ai-director"
+  namespace: "default"
+  replicas: 3
+
+# 数据库配置
+database:
+  type: "sqlite"  # sqlite | postgresql | mysql
+  host: "localhost"
+  port: 5432
+  name: "airector"
+  user: "dbuser"
+  backup_format: "full"  # full | incremental
+
+# 流量配置
+traffic:
+  ingress:
+    stable: "ai-director-stable"
+    canary: "ai-director-canary"
+  service:
+    stable: "ai-director-stable"
+    canary: "ai-director-canary"
+
+# 回滚阈值（自动触发条件）
+rollback_thresholds:
+  error_rate: 1        # 错误率 > 1% 触发
+  p95_latency: 500     # P95延迟 > 500ms 触发
+  cpu_usage: 70        # CPU使用率 > 70% 触发
+  memory_usage: 75     # 内存使用率 > 75% 触发
+  timeout_rate: 5      # 超时率 > 5% 触发
+
+# 监控告警配置
+monitoring:
+  alert_manager: "http://alertmanager:9093"
+  webhook_url: "https://oapi.dingtalk.com/robot/send?access_token=your_token"
+  severity: "critical"
+
+# 通知配置
+notifications:
+  dingtalk:
+    enabled: true
+    webhook: "https://oapi.dingtalk.com/robot/send?access_token=your_token"
+  email:
+    enabled: false
+    recipients: ["devops@example.com", "tech@example.com"]
+
+# 回滚步骤配置
+steps:
+  traffic:
+    enabled: true
+    priority: 1
+  service:
+    enabled: true
+    priority: 2
+  database:
+    enabled: true
+    priority: 3
+
+# 验证配置
+validation:
+  health_check_url: "http://localhost:3000/api/v1/health"
+  timeout_seconds: 30
+  retry_attempts: 3

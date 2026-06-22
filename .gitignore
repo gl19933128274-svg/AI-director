@@ -21,6 +21,12 @@ out/
 .env.test.local
 .env.production.local
 
+# 允许把 .env.*.example 模板提交到仓库（让其他开发者知道需要哪些变量）
+!.env.example
+!.env.local.example
+!.env.development.example
+!.env.production.example
+
 # IDE
 .vscode/
 .idea/

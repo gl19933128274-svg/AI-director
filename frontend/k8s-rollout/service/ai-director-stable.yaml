@@ -1,0 +1,22 @@
+# AI导演系统稳定版本 Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-director-stable
+  namespace: production
+  labels:
+    app: ai-director
+    track: stable
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "80"
+spec:
+  type: ClusterIP
+  selector:
+    app: ai-director
+    track: stable
+  ports:
+  - name: http
+    port: 80
+    targetPort: 3000
+    protocol: TCP

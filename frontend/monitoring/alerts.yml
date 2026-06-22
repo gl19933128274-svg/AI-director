@@ -1,0 +1,465 @@
+# 生产环境监控告警规则配置
+# 基于 storyboardService.ts 中的 16 个日志埋点
+
+groups:
+  - name: storyboard_service_alerts
+    interval: 30s
+    rules:
+      # ========================================
+      # 产品特征分析告警
+      # ========================================
+      
+      - alert: StoryboardProductAnalysisHighLatency
+        expr: rate(storyboard_product_analysis_duration_seconds[5m]) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard
+          component: analyzeProductFeatures
+        annotations:
+          summary: "产品特征分析延迟过高"
+          description: "产品特征分析平均耗时超过 2 秒，当前值: {{ $value }} 秒"
+          log_pattern: "开始分析产品特征"
+          impact: "影响分镜生成响应速度"
+          action: "检查产品特征分析逻辑，优化关键词匹配算法"
+
+      - alert: StoryboardProductAnalysisFailed
+        expr: rate(storyboard_product_analysis_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          service: storyboard
+          component: analyzeProductFeatures
+        annotations:
+          summary: "产品特征分析失败率过高"
+          description: "产品特征分析失败率超过 10%，当前值: {{ $value }}"
+          log_pattern: "产品特征分析完成"
+          impact: "无法正确识别产品类型，影响分镜质量"
+          action: "检查产品类别配置和关键词匹配逻辑"
+
+      # ========================================
+      # 提示词构建告警
+      # ========================================
+      
+      - alert: StoryboardPromptBuildHighLatency
+        expr: rate(storyboard_prompt_build_duration_seconds[5m]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard
+          component: buildStoryboardPrompt
+        annotations:
+          summary: "提示词构建延迟过高"
+          description: "提示词构建平均耗时超过 3 秒，当前值: {{ $value }} 秒"
+          log_pattern: "开始构建分镜提示词"
+          impact: "影响 AI 调用效率"
+          action: "检查提示词模板和字符串拼接逻辑"
+
+      - alert: StoryboardPromptTooLong
+        expr: storyboard_prompt_length > 5000
+        for: 1m
+        labels:
+          severity: warning
+          service: storyboard
+          component: buildStoryboardPrompt
+        annotations:
+          summary: "提示词长度过长"
+          description: "生成的提示词长度超过 5000 字符，当前值: {{ $value }}"
+          log_pattern: "分镜提示词构建完成"
+          impact: "可能导致 AI 调用失败或超时"
+          action: "优化提示词模板，减少冗余信息"
+
+      - alert: StoryboardPromptTooShort
+        expr: storyboard_prompt_length < 500
+        for: 1m
+        labels:
+          severity: warning
+          service: storyboard
+          component: buildStoryboardPrompt
+        annotations:
+          summary: "提示词长度过短"
+          description: "生成的提示词长度少于 500 字符，当前值: {{ $value }}"
+          log_pattern: "分镜提示词构建完成"
+          impact: "可能导致 AI 生成的分镜质量不佳"
+          action: "检查提示词模板是否完整"
+
+      # ========================================
+      # AI 消息构建告警
+      # ========================================
+      
+      - alert: StoryboardAIMessageBuildHighLatency
+        expr: rate(storyboard_ai_message_build_duration_seconds[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard
+          component: buildAIMessages
+        annotations:
+          summary: "AI 消息构建延迟过高"
+          description: "AI 消息构建平均耗时超过 1 秒，当前值: {{ $value }} 秒"
+          log_pattern: "开始构建AI消息"
+          impact: "影响 AI 调用效率"
+          action: "检查消息构建逻辑"
+
+      # ========================================
+      # 时长计算告警
+      # ========================================
+      
+      - alert: StoryboardDurationCalculationFailed
+        expr: rate(storyboard_duration_calculation_errors_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          service: storyboard
+          component: calculateDuration
+        annotations:
+          summary: "时长计算失败率过高"
+          description: "时长计算失败率超过 5%，当前值: {{ $value }}"
+          log_pattern: "镜头时长计算完成"
+          impact: "分镜时长分配不准确"
+          action: "检查时长计算逻辑和权重分配"
+
+      - alert: StoryboardDurationMismatch
+        expr: abs(storyboard_total_duration - storyboard_target_duration) > 1
+        for: 1m
+        labels:
+          severity: warning
+          service: storyboard
+          component: calculateDuration
+        annotations:
+          summary: "时长计算不匹配"
+          description: "计算的总时长与目标时长差距超过 1 秒，差值: {{ $value }}"
+          log_pattern: "镜头时长计算完成"
+          impact: "分镜时长不准确"
+          action: "检查时长归一化逻辑"
+
+      # ========================================
+      # 分镜评分告警
+      # ========================================
+      
+      - alert: StoryboardScoreTooLow
+        expr: storyboard_score < 60
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard
+          component: scoreStoryboard
+        annotations:
+          summary: "分镜评分过低"
+          description: "分镜平均评分低于 60 分，当前值: {{ $value }}"
+          log_pattern: "分镜评分完成"
+          impact: "分镜质量可能不佳，影响视频效果"
+          action: "检查分镜生成逻辑，优化镜头编排"
+
+      - alert: StoryboardRichnessTooLow
+        expr: storyboard_richness_score < 50
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard
+          component: scoreStoryboard
+        annotations:
+          summary: "镜头丰富度过低"
+          description: "镜头丰富度评分低于 50 分，当前值: {{ $value }}"
+          log_pattern: "分镜评分完成"
+          impact: "镜头类型单一，缺乏变化"
+          action: "优化镜头模板，增加镜头多样性"
+
+      - alert: StoryboardVisualExpressionTooLow
+        expr: storyboard_visual_expression_score < 70
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard
+          component: scoreStoryboard
+        annotations:
+          summary: "视觉表现力过低"
+          description: "视觉表现力评分低于 70 分，当前值: {{ $value }}"
+          log_pattern: "分镜评分完成"
+          impact: "分镜视觉效果可能不佳"
+          action: "优化运镜和构图描述"
+
+      - alert: StoryboardConversionAbilityTooLow
+        expr: storyboard_conversion_ability_score < 70
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard
+          component: scoreStoryboard
+        annotations:
+          summary: "转化能力过低"
+          description: "转化能力评分低于 70 分，当前值: {{ $value }}"
+          log_pattern: "分镜评分完成"
+          impact: "分镜商业价值可能不足"
+          action: "优化产品展示和品牌强化逻辑"
+
+      # ========================================
+      # 本地分镜生成告警
+      # ========================================
+      
+      - alert: StoryboardLocalGenerateHighLatency
+        expr: rate(storyboard_local_generate_duration_seconds[5m]) > 2
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard
+          component: generateLocalStoryboard
+        annotations:
+          summary: "本地分镜生成延迟过高"
+          description: "本地分镜生成平均耗时超过 2 秒，当前值: {{ $value }} 秒"
+          log_pattern: "开始本地生成分镜"
+          impact: "影响分镜生成响应速度"
+          action: "检查分镜模板和生成逻辑"
+
+      - alert: StoryboardLocalGenerateFailed
+        expr: rate(storyboard_local_generate_errors_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: warning
+          service: storyboard
+          component: generateLocalStoryboard
+        annotations:
+          summary: "本地分镜生成失败率过高"
+          description: "本地分镜生成失败率超过 5%，当前值: {{ $value }}"
+          log_pattern: "本地分镜生成完成"
+          impact: "无法生成分镜"
+          action: "检查分镜模板配置"
+
+      # ========================================
+      # AI 响应解析告警
+      # ========================================
+      
+      - alert: StoryboardAIParseHighLatency
+        expr: rate(storyboard_ai_parse_duration_seconds[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard
+          component: parseAIResponse
+        annotations:
+          summary: "AI 响应解析延迟过高"
+          description: "AI 响应解析平均耗时超过 1 秒，当前值: {{ $value }} 秒"
+          log_pattern: "开始解析AI响应"
+          impact: "影响分镜生成响应速度"
+          action: "检查 JSON 解析逻辑"
+
+      - alert: StoryboardAIParseFormatError
+        expr: rate(storyboard_ai_parse_format_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          service: storyboard
+          component: parseAIResponse
+        annotations:
+          summary: "AI 响应格式错误率过高"
+          description: "AI 响应格式错误率超过 10%，当前值: {{ $value }}"
+          log_pattern: "AI响应格式错误，缺少shots数组或shots为空"
+          impact: "无法解析 AI 生成的分镜"
+          action: "检查 AI 提示词，确保返回格式正确"
+
+      - alert: StoryboardAIParseFailed
+        expr: rate(storyboard_ai_parse_errors_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: storyboard
+          component: parseAIResponse
+        annotations:
+          summary: "AI 响应解析失败率过高"
+          description: "AI 响应解析失败率超过 5%，当前值: {{ $value }}"
+          log_pattern: "AI响应解析失败"
+          impact: "无法解析 AI 生成的分镜"
+          action: "检查 AI 响应内容和解析逻辑"
+
+      - alert: StoryboardAIParseEmptyResponse
+        expr: rate(storyboard_ai_parse_empty_errors_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: storyboard
+          component: parseAIResponse
+        annotations:
+          summary: "AI 响应为空率过高"
+          description: "AI 响应为空率超过 5%，当前值: {{ $value }}"
+          log_pattern: "AI响应解析失败"
+          impact: "AI 未返回任何内容"
+          action: "检查 AI 服务状态和连接"
+
+      # ========================================
+      # 整体服务告警
+      # ========================================
+      
+      - alert: StoryboardServiceHighErrorRate
+        expr: rate(storyboard_service_errors_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+          service: storyboard
+          component: all
+        annotations:
+          summary: "分镜服务错误率过高"
+          description: "分镜服务整体错误率超过 10%，当前值: {{ $value }}"
+          impact: "影响用户体验"
+          action: "立即检查服务日志，定位问题根源"
+
+      - alert: StoryboardServiceHighLatency
+        expr: rate(storyboard_service_duration_seconds[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard
+          component: all
+        annotations:
+          summary: "分镜服务延迟过高"
+          description: "分镜服务平均耗时超过 10 秒，当前值: {{ $value }} 秒"
+          impact: "影响用户体验"
+          action: "检查各组件性能，优化慢查询"
+
+      - alert: StoryboardServiceLowSuccessRate
+        expr: rate(storyboard_service_success_total[5m]) / rate(storyboard_service_requests_total[5m]) < 0.95
+        for: 5m
+        labels:
+          severity: critical
+          service: storyboard
+          component: all
+        annotations:
+          summary: "分镜服务成功率过低"
+          description: "分镜服务成功率低于 95%，当前值: {{ $value }}"
+          impact: "影响用户体验"
+          action: "立即检查服务状态"
+
+  - name: storyboard_api_alerts
+    interval: 30s
+    rules:
+      # ========================================
+      # API 接口告警
+      # ========================================
+      
+      - alert: StoryboardAPIHighErrorRate
+        expr: rate(storyboard_api_errors_total[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          service: storyboard-api
+          component: api
+        annotations:
+          summary: "分镜 API 错误率过高"
+          description: "分镜 API 错误率超过 5%，当前值: {{ $value }}"
+          impact: "影响前端调用"
+          action: "检查 API 日志，定位错误原因"
+
+      - alert: StoryboardAPIHighLatency
+        expr: rate(storyboard_api_duration_seconds[5m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard-api
+          component: api
+        annotations:
+          summary: "分镜 API 延迟过高"
+          description: "分镜 API 平均响应时间超过 5 秒，当前值: {{ $value }} 秒"
+          impact: "影响用户体验"
+          action: "检查 API 性能，优化慢查询"
+
+      - alert: StoryboardAPIInvalidRequest
+        expr: rate(storyboard_api_invalid_requests_total[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+          service: storyboard-api
+          component: api
+        annotations:
+          summary: "分镜 API 无效请求率过高"
+          description: "分镜 API 无效请求率超过 10%，当前值: {{ $value }}"
+          impact: "前端调用参数错误"
+          action: "检查前端请求参数格式"
+
+  - name: storyboard_business_alerts
+    interval: 60s
+    rules:
+      # ========================================
+      # 业务指标告警
+      # ========================================
+      
+      - alert: StoryboardLowQualityRate
+        expr: rate(storyboard_low_quality_shots_total[10m]) / rate(storyboard_total_shots_total[10m]) > 0.2
+        for: 10m
+        labels:
+          severity: warning
+          service: storyboard
+          component: business
+        annotations:
+          summary: "低质量分镜率过高"
+          description: "低质量分镜率超过 20%，当前值: {{ $value }}"
+          impact: "影响视频生成质量"
+          action: "优化分镜生成逻辑"
+
+      - alert: StoryboardCategoryMismatch
+        expr: rate(storyboard_category_mismatches_total[10m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard
+          component: business
+        annotations:
+          summary: "产品类别识别错误率过高"
+          description: "产品类别识别错误率超过 5%，当前值: {{ $value }}"
+          impact: "影响分镜准确性"
+          action: "检查产品类别配置和关键词"
+
+      - alert: StoryboardDurationMismatchRate
+        expr: rate(storyboard_duration_mismatches_total[10m]) / rate(storyboard_total_requests_total[10m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: storyboard
+          component: business
+        annotations:
+          summary: "时长不匹配率过高"
+          description: "时长不匹配率超过 10%，当前值: {{ $value }}"
+          impact: "分镜时长不准确"
+          action: "检查时长计算逻辑"
+
+# ========================================
+# 监控指标说明
+# ========================================
+# 
+# 核心指标：
+# - storyboard_service_requests_total: 服务总请求数
+# - storyboard_service_success_total: 服务成功数
+# - storyboard_service_errors_total: 服务错误数
+# - storyboard_service_duration_seconds: 服务耗时
+#
+# 组件指标：
+# - storyboard_product_analysis_duration_seconds: 产品特征分析耗时
+# - storyboard_product_analysis_errors_total: 产品特征分析错误数
+# - storyboard_prompt_build_duration_seconds: 提示词构建耗时
+# - storyboard_prompt_length: 提示词长度
+# - storyboard_ai_message_build_duration_seconds: AI 消息构建耗时
+# - storyboard_duration_calculation_duration_seconds: 时长计算耗时
+# - storyboard_duration_calculation_errors_total: 时长计算错误数
+# - storyboard_total_duration: 计算的总时长
+# - storyboard_target_duration: 目标时长
+# - storyboard_score: 分镜评分
+# - storyboard_richness_score: 镜头丰富度评分
+# - storyboard_visual_expression_score: 视觉表现力评分
+# - storyboard_conversion_ability_score: 转化能力评分
+# - storyboard_local_generate_duration_seconds: 本地分镜生成耗时
+# - storyboard_local_generate_errors_total: 本地分镜生成错误数
+# - storyboard_ai_parse_duration_seconds: AI 响应解析耗时
+# - storyboard_ai_parse_format_errors_total: AI 响应格式错误数
+# - storyboard_ai_parse_errors_total: AI 响应解析错误数
+# - storyboard_ai_parse_empty_errors_total: AI 响应为空错误数
+#
+# API 指标：
+# - storyboard_api_errors_total: API 错误数
+# - storyboard_api_duration_seconds: API 耗时
+# - storyboard_api_invalid_requests_total: API 无效请求数
+#
+# 业务指标：
+# - storyboard_low_quality_shots_total: 低质量分镜数
+# - storyboard_total_shots_total: 总分镜数
+# - storyboard_category_mismatches_total: 产品类别识别错误数
+# - storyboard_duration_mismatches_total: 时长不匹配数
+# - storyboard_total_requests_total: 总请求数
+#

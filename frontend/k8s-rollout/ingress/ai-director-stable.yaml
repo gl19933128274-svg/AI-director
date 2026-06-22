@@ -1,0 +1,32 @@
+# AI导演系统稳定版本 Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-director-stable
+  namespace: production
+  labels:
+    app: ai-director
+    track: stable
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/client-max-body-size: "50m"
+spec:
+  tls:
+  - hosts:
+    - api.aidirector.example.com
+    secretName: api-tls-secret
+  rules:
+  - host: api.aidirector.example.com
+    http:
+      paths:
+      - path: /(.*)
+        pathType: Prefix
+        backend:
+          service:
+            name: ai-director-stable
+            port:
+              number: 80

@@ -1,0 +1,61 @@
+# AI导演系统数据库配置
+# 使用 Docker Compose 启动 PostgreSQL 和 Redis
+
+version: '3.8'
+
+services:
+  # PostgreSQL 数据库
+  postgres:
+    image: postgres:15-alpine
+    container_name: ai-director-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: storyboard_v2
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ai-director-network
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: ai-director-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+    networks:
+      - ai-director-network
+
+# 网络配置
+networks:
+  ai-director-network:
+    driver: bridge
+
+# 持久化存储
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+
+# 访问信息
+# PostgreSQL: postgresql://postgres:password@localhost:5432/storyboard_v2
+# Redis: redis://localhost:6379

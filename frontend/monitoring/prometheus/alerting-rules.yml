@@ -1,0 +1,273 @@
+# Prometheus 告警规则
+# AI导演系统灰度发布告警配置
+
+groups:
+  # ==================== API 成功率告警 ====================
+  - name: api-success-rate
+    interval: 30s
+    rules:
+      # API 成功率低于 99%
+      - alert: APISuccessRateLow
+        expr: |
+          sum(rate(http_requests_total{status=~"2.."}[5m])) by (version)
+          / sum(rate(http_requests_total[5m])) by (version)
+          < 0.99
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "API成功率低于99% (版本: {{ $labels.version }})"
+          description: "当前成功率: {{ $value | humanizePercentage }}"
+          runbook_url: "https://docs.example.com/runbooks/api-success-rate"
+
+      # 灰度版本成功率低于稳定版本
+      - alert: CanarySuccessRateLowerThanStable
+        expr: |
+          (
+            sum(rate(http_requests_total{track="canary",status=~"2.."}[5m])) 
+            / sum(rate(http_requests_total{track="canary"}[5m]))
+          )
+          <
+          (
+            sum(rate(http_requests_total{track="stable",status=~"2.."}[5m])) 
+            / sum(rate(http_requests_total{track="stable"}[5m]))
+          ) - 0.05
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "灰度版本成功率低于稳定版本超过5%"
+          description: "稳定版本成功率: {{ $labels.stable_rate }}, 灰度版本成功率: {{ $labels.canary_rate }}"
+
+  # ==================== 错误率告警 ====================
+  - name: error-rate
+    interval: 30s
+    rules:
+      # 5xx 错误率超过 1%
+      - alert: HTTP5xxErrorRateHigh
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) by (version, track)
+          / sum(rate(http_requests_total[5m])) by (version, track)
+          > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "5xx错误率超过1%"
+          description: "版本: {{ $labels.version }}, 错误率: {{ $value | humanizePercentage }}"
+          dashboard_url: "{{ $labels.dashboard_url }}"
+
+      # 4xx 错误率超过 5%
+      - alert: HTTP4xxErrorRateHigh
+        expr: |
+          sum(rate(http_requests_total{status=~"4.."}[5m])) by (version, track)
+          / sum(rate(http_requests_total[5m])) by (version, track)
+          > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "4xx错误率超过5%"
+          description: "版本: {{ $labels.version }}, 错误率: {{ $value | humanizePercentage }}"
+
+      # 认证错误率异常
+      - alert: AuthErrorRateAnomaly
+        expr: |
+          sum(rate(http_requests_total{path=~"/api/.*",status="401"}[5m])) by (track)
+          / sum(rate(http_requests_total{path=~"/api/.*"}[5m])) by (track)
+          > 0.02
+        for: 3m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "认证失败率异常"
+          description: "可能存在未授权访问或Token过期问题"
+
+  # ==================== 延迟告警 ====================
+  - name: latency
+    interval: 30s
+    rules:
+      # P95 延迟超过 500ms
+      - alert: HTTPRequestLatencyHigh
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, version, track, path)
+          ) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "P95延迟超过500ms"
+          description: "路径: {{ $labels.path }}, 版本: {{ $labels.version }}, P95延迟: {{ $value }}s"
+
+      # P99 延迟超过 1s
+      - alert: HTTPRequestLatencyCritical
+        expr: |
+          histogram_quantile(0.99, 
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le, version, track, path)
+          ) > 1
+        for: 5m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "P99延迟超过1秒"
+          description: "路径: {{ $labels.path }}, 版本: {{ $labels.version }}, P99延迟: {{ $value }}s"
+
+      # 灰度版本延迟明显高于稳定版本
+      - alert: CanaryLatencyHigherThanStable
+        expr: |
+          (
+            histogram_quantile(0.95, 
+              sum(rate(http_request_duration_seconds_bucket{track="canary"}[5m])) by (le, path)
+            )
+          )
+          >
+          (
+            histogram_quantile(0.95, 
+              sum(rate(http_request_duration_seconds_bucket{track="stable"}[5m])) by (le, path)
+            )
+          ) * 1.5
+        for: 15m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "灰度版本延迟比稳定版本高50%以上"
+          description: "灰度版本P95延迟是稳定版本的 {{ $value }} 倍"
+
+  # ==================== 资源使用率告警 ====================
+  - name: resource-usage
+    interval: 30s
+    rules:
+      # CPU 使用率超过 80%
+      - alert: HighCPUUsage
+        expr: |
+          sum(rate(container_cpu_usage_seconds_total{pod=~"ai-director-.*"}[5m])) by (pod, track)
+          / sum(container_spec_cpu_quota{pod=~"ai-director-.*"}/container_spec_cpu_period{pod=~"ai-director-.*"}) by (pod, track)
+          > 0.8
+        for: 10m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "CPU使用率超过80%"
+          description: "Pod: {{ $labels.pod }}, 版本: {{ $labels.track }}, 使用率: {{ $value | humanizePercentage }}"
+
+      # 内存使用率超过 85%
+      - alert: HighMemoryUsage
+        expr: |
+          container_memory_usage_bytes{pod=~"ai-director-.*"} 
+          / container_spec_memory_limit_bytes{pod=~"ai-director-.*"}
+          > 0.85
+        for: 10m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "内存使用率超过85%"
+          description: "Pod: {{ $labels.pod }}, 版本: {{ $labels.track }}, 使用率: {{ $value | humanizePercentage }}"
+
+      # GPU 使用率异常
+      - alert: GPUUsageLow
+        expr: |
+          DCGM_FI_DEV_GPU_UTIL{container="ai-director"} < 10
+        for: 30m
+        labels:
+          severity: info
+          team: ml
+        annotations:
+          summary: "GPU利用率较低，可能存在资源浪费"
+          description: "Pod: {{ $labels.pod }}, GPU利用率: {{ $value }}%"
+
+  # ==================== 灰度发布专用告警 ====================
+  - name: canary-deployment
+    interval: 30s
+    rules:
+      # 灰度版本 Pod 不健康
+      - alert: CanaryPodUnhealthy
+        expr: |
+          kube_pod_status_phase{phase!="Running", pod=~"ai-director-.*canary.*"}
+        for: 5m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "灰度版本Pod不健康"
+          description: "Pod: {{ $labels.pod }}, 状态: {{ $labels.phase }}"
+          action: "立即检查灰度版本容器日志，考虑回滚"
+
+      # 灰度版本流量异常
+      - alert: CanaryTrafficAnomaly
+        expr: |
+          sum(rate(http_requests_total{track="canary"}[5m])) 
+          / 
+          (sum(rate(http_requests_total{track="stable"}[5m])) + sum(rate(http_requests_total{track="canary"}[5m])))
+          < 0.05
+        for: 30m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "灰度版本流量低于预期"
+          description: "当前灰度流量占比: {{ $value | humanizePercentage }}, 预期: ~10%"
+
+      # 需要停止扩容
+      - alert: StopCanaryExpansion
+        expr: |
+          (
+            sum(rate(http_requests_total{track="canary",status=~"5.."}[5m])) 
+            / sum(rate(http_requests_total{track="canary"}[5m]))
+          ) > 0.02
+          OR
+          (
+            histogram_quantile(0.95, 
+              sum(rate(http_request_duration_seconds_bucket{track="canary"}[5m])) by (le)
+            ) > 1
+          )
+        for: 5m
+        labels:
+          severity: critical
+          action_required: true
+        annotations:
+          summary: "灰度版本指标触发停止扩容条件"
+          description: "请立即停止灰度扩容，排查问题后决定是否回滚"
+          runbook_url: "https://docs.example.com/runbooks/stop-canary"
+
+  # ==================== 业务指标告警 ====================
+  - name: business-metrics
+    interval: 60s
+    rules:
+      # 视频生成任务失败率过高
+      - alert: VideoGenerationFailureRateHigh
+        expr: |
+          sum(rate(video_generation_tasks_total{status="failed"}[10m])) by (track)
+          / sum(rate(video_generation_tasks_total[10m])) by (track)
+          > 0.1
+        for: 15m
+        labels:
+          severity: critical
+          team: backend
+        annotations:
+          summary: "视频生成任务失败率超过10%"
+          description: "版本: {{ $labels.track }}, 失败率: {{ $value | humanizePercentage }}"
+
+      # AI 分镜生成超时
+      - alert: StoryboardGenerationTimeout
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(storyboard_generation_duration_seconds_bucket{status="timeout"}[5m])) by (le, track)
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          team: ml
+        annotations:
+          summary: "AI分镜生成超时率超过5%"
+          description: "版本: {{ $labels.track }}, 超时率: {{ $value | humanizePercentage }}"
