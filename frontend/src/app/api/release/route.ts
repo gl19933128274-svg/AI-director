@@ -10,13 +10,10 @@ import {
   addToAllowlist,
   removeFromAllowlist,
   addToBlocklist,
-  removeFromBlocklist,
-  generateRequestId,
-  logInfo,
-  logError,
-  logWarn
+  removeFromBlocklist
 } from '@/services/releaseControl';
 import { FeatureFlags } from '@/services/releaseControl';
+import { generateRequestId, logInfo, logError, logWarn } from '@/services/logger';
 
 export async function GET(request: NextRequest) {
   const requestId = generateRequestId();

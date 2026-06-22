@@ -4,10 +4,9 @@ import {
   getUserMonthlyCost,
   getUserCostHistory,
   getRecordsByUserId,
-  checkUserCostLimit,
-  generateRequestId,
-  logInfo
+  checkUserCostLimit
 } from '@/services/costControl';
+import { generateRequestId, logInfo } from '@/services/logger';
 
 export async function GET(request: NextRequest) {
   const requestId = generateRequestId();

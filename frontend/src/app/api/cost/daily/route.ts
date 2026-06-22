@@ -2,10 +2,9 @@ import { NextRequest } from 'next/server';
 import {
   getDailyCost,
   getCostStats,
-  getRecordsByDate,
-  generateRequestId,
-  logInfo
+  getRecordsByDate
 } from '@/services/costControl';
+import { generateRequestId, logInfo } from '@/services/logger';
 
 export async function GET(request: NextRequest) {
   const requestId = generateRequestId();

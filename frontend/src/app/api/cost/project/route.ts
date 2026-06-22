@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { PrismaClient } from '@prisma/client';
-import { generateRequestId, logInfo } from '@/services/costControl';
+import { generateRequestId, logInfo } from '@/services/logger';
 
 const prisma = new PrismaClient();
 

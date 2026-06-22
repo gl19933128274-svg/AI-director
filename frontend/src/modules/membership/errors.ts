@@ -26,3 +26,11 @@ export class PermissionError extends MembershipError {
     this.name = 'PermissionError';
   }
 }
+
+// 订单错误
+export class OrderError extends MembershipError {
+  constructor(message: string, code: number = 500) {
+    super(message, code);
+    this.name = 'OrderError';
+  }
+}

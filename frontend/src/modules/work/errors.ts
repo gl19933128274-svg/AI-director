@@ -11,6 +11,13 @@ export class WorkError extends Error {
   }
 }
 
+export class UserError extends WorkError {
+  constructor(message: string, code: number = 400) {
+    super(message, code);
+    this.name = 'UserError';
+  }
+}
+
 // 验证错误
 export class ValidationError extends WorkError {
   constructor(message: string, field: string) {
